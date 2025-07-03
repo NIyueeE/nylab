@@ -1,0 +1,38 @@
+# 通用忽略
+.DS_Store
+*.log
+*.tmp
+*.bak
+*.swp
+.env
+.env.local
+
+# 依赖目录
+**/node_modules/
+**/venv/
+**/.venv/
+**/__pycache__/
+
+# 构建产物
+**/dist/
+**/build/
+**/*.egg-info/
+**/.pytest_cache/
+
+# 前端特定
+frontend/.vite/
+frontend/package-lock.json  # 已存在锁定文件，无需重复提交
+
+# 后端特定
+backend/.mypy_cache/
+
+# MLflow
+mlflow/mlruns/
+mlflow/mlartifacts/
+
+# 编辑器配置
+.idea/
+.vscode/
+
+# Docker忽略
+**/docker-compose.override.yml
