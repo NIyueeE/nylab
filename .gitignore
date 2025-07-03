@@ -32,7 +32,7 @@ mlflow/mlartifacts/
 
 # 编辑器配置
 .idea/
-.vscode/
+# .vscode/ 
 
 # Docker忽略
 **/docker-compose.override.yml
