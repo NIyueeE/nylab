@@ -27,7 +27,7 @@ services:
           /bin/sh -c "
           /tmp/wait-for-it.sh minio:9000 &&
           /usr/bin/mc alias set minio http://minio:9000 ${AWS_ACCESS_KEY_ID} ${AWS_SECRET_ACCESS_KEY} &&
-          /usr/bin/mc mb minio/mlflow;
+          /usr/bin/mc ls minio/mlflow || /usr/bin/mc mb minio/mlflow;
           exit 0;
           "
       volumes:
@@ -102,7 +102,7 @@ services:
   celery-worker:
     build: ./backend
     container_name: nylab_celery_worker
-    command: celery -A app.celery_app worker --loglevel=info
+    command: celery -A app.tasks.celery_app worker --loglevel=info
     volumes:
       - shared_data:/data
     environment:

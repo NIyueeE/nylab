@@ -13,15 +13,30 @@ const TrainPage = () => {
   const [progress, setProgress] = useState(0);
   const [runId, setRunId] = useState(null);
 
-  const handleUpload = (info) => {
-    const { status } = info.file;
-    if (status === 'done') {
-      setFile(info.file.originFileObj);
+const handleUpload = (info) => {
+  const { file } = info;
+  if (file.status === 'uploading') {
+    setFile(null); // 重置文件状态
+    return;
+  }
+  
+  if (file.status === 'done') {
+    // 验证文件有效性
+    if (file.originFileObj) {
+      setFile(file.originFileObj);
       notification.success({ message: '文件上传成功' });
-    } else if (status === 'error') {
-      notification.error({ message: '文件上传失败' });
+    } else {
+      notification.error({ message: '文件无效' });
     }
-  };
+  } 
+  else if (file.status === 'error') {
+    notification.error({ message: '上传失败', description: file.response?.message || '未知错误' });
+    setFile(null);
+  }
+  else if (file.status === 'removed') {
+    setFile(null);
+  }
+};
 
   const handleStartTraining = async () => {
     if (!file) {
