@@ -7,6 +7,12 @@ from sklearn.model_selection import train_test_split
 from minio import Minio
 from .utils.progress import update_progress
 
+os.environ["MLFLOW_TRACKING_URI"] = "http://mlflow:5000"
+os.environ["MLFLOW_S3_ENDPOINT_URL"] = "http://minio:9000"
+os.environ["AWS_ACCESS_KEY_ID"] = "minio"
+os.environ["AWS_SECRET_ACCESS_KEY"] = "minio123"
+
+
 # 创建Celery实例
 celery_app = Celery(
     'tasks',
@@ -16,7 +22,7 @@ celery_app = Celery(
 
 # MinIO客户端配置
 minio_client = Minio(
-    os.getenv("MINIO_ENDPOINT", "minio:9000"),
+    endpoint=os.getenv("MINIO_ENDPOINT", "minio:9000"),
     access_key=os.getenv("AWS_ACCESS_KEY_ID"),
     secret_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
     secure=False
@@ -67,7 +73,10 @@ def train_model_task(self, model_type, dataset_path, run_id):
             )
             
             update_progress(run_id, 100, "Completed", accuracy=accuracy)
-            return {"status": "success", "accuracy": accuracy}
+            return {"status": "success", 
+                    "accuracy": accuracy,
+                    "model_id": run.info.run_id
+                }
     
     except Exception as e:
         update_progress(run_id, -1, f"Error: {str(e)}")

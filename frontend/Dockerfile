@@ -6,7 +6,7 @@ COPY package*.json ./
 RUN npm config set registry https://mirrors.huaweicloud.com/repository/npm/
 RUN npm install
 COPY . .
-RUN npm run build
+RUN npm run build -- --mode production
 
 # 生产阶段
 FROM nginx:alpine

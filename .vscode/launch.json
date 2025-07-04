@@ -1,35 +1,57 @@
-// .vscode/launch.json 配置
 {
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Python: Backend",
+      "name": "Attach to Backend",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": {
+        "host": "localhost",
+        "port": 5678
+      },
+      "pathMappings": [
+        {
+          "localRoot": "${workspaceFolder}/backend/app",
+          "remoteRoot": "/app"
+        }
+      ],
+      "justMyCode": false
+    },
+    {
+      "name": "Run Tests",
       "type": "debugpy",
       "request": "launch",
-      "module": "app.main",
-      "cwd": "${workspaceFolder}/backend",
+      "program": "${workspaceFolder}/test/backend_test.py",
       "console": "integratedTerminal",
-      "justMyCode": true,
       "python": "/home/niyue/.conda/envs/nylab/bin/python",
       "env": {
-        "PYTHONPATH": "${workspaceFolder}/backend/app"
+        "PYTHONPATH": "${workspaceFolder}/backend"
       }
     },
     {
-      "name": "Chrome: Frontend",
+      "name": "Chrome: Frontend (Production)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:80",
+      "webRoot": "${workspaceFolder}/frontend/src",
+      "sourceMaps": true,
+      "trace": true,
+      "skipFiles": [
+        "node_modules/**",
+        "vite/**"
+      ]
+    },
+    {
+      "name": "Chrome: Frontend (Development)",
       "type": "chrome",
       "request": "launch",
       "url": "http://localhost:5173",
       "webRoot": "${workspaceFolder}/frontend/src",
-      "sourceMaps": true,   // 确保源码映射生效
-      "trace": true,        // 启用调试日志
+      "sourceMaps": true,
+      "trace": true,
       "skipFiles": [
-        "node_modules/**",  // 跳过node模块
-        "vite/**"           // 跳过Vite内部代码
-      ],
-      "pathMapping": {
-        "/": "${webRoot}"   // 显式路径映射
-      }
+        "node_modules/**"
+      ]
     }
   ]
 }
