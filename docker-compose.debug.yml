@@ -30,17 +30,40 @@ services:
       /bin/sh -c "
       /tmp/wait-for-it.sh minio:9000 &&
       /usr/bin/mc alias set minio http://minio:9000 $${AWS_ACCESS_KEY_ID} $${AWS_SECRET_ACCESS_KEY} &&
+      
+      # 创建必需存储桶
       (/usr/bin/mc ls minio/mlflow || /usr/bin/mc mb minio/mlflow) &&
-      (/usr/bin/mc ls minio/mlflow-datasets || /usr/bin/mc mb minio/mlflow-datasets);
+      (/usr/bin/mc ls minio/mlflow-datasets || /usr/bin/mc mb minio/mlflow-datasets) &&
+      (/usr/bin/mc ls minio/training-scripts || /usr/bin/mc mb minio/training-scripts) &&
+      (/usr/bin/mc ls minio/pre-trained-models || /usr/bin/mc mb minio/pre-trained-models);
+      
+      # 复制 training-scripts 文件到桶
+      if [ -d '/tmp/training-scripts' ]; then
+        echo '复制 training-scripts 到 MinIO...';
+        /usr/bin/mc cp --recursive /tmp/training-scripts/ minio/training-scripts/;
+      else
+        echo '警告: /tmp/training-scripts 目录不存在';
+      fi;
+      
+      # 复制 pre-trained-models 文件到桶
+      if [ -d '/tmp/pre-trained-models' ]; then
+        echo '复制 pre-trained-models 到 MinIO...';
+        /usr/bin/mc cp --recursive /tmp/pre-trained-models/ minio/pre-trained-models/;
+      else
+        echo '警告: /tmp/pre-trained-models 目录不存在';
+      fi;
+      
       exit 0;
       "
     volumes:
-      - ./wait-for-it.sh:/tmp/wait-for-it.sh
+      - ./init_minio/wait-for-it.sh:/tmp/wait-for-it.sh
+      - ./init_minio/training-scripts:/tmp/training-scripts
+      - ./init_minio/pre-trained-models:/tmp/pre-trained-models
     depends_on:
       minio:
         condition: service_healthy
 
-  # MLflow 跟踪服务器（调试版）
+  # MLflow 跟踪服务器
   mlflow:
     build: ./mlflow
     image: mlflow_server
