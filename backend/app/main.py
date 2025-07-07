@@ -4,11 +4,15 @@ from typing import Optional
 from dotenv import load_dotenv
 from pathlib import Path
 import logging
+from fastapi.responses import JSONResponse
+from minio import Minio
+from minio.error import S3Error
 import uuid
 from fastapi import FastAPI, UploadFile, Request, File
 from fastapi.middleware.cors import CORSMiddleware
-from .tasks import train_model_task
+from .tasks import train_model_task, minio_client
 from .utils.TrainingConfig import TrainingConfig
+from .utils.database import _hash_password
 
 app = FastAPI()
 
@@ -45,33 +49,94 @@ async def start_training_task(
     run_id = str(uuid.uuid4())
     
     # 创建数据集目录（以run_id命名）, 使用临时目录
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        dataset_dir = os.path.join(tmp_dir, run_id)
-        os.makedirs(dataset_dir, exist_ok=True)
-    
-        # 保存所有上传的文件
-        if task_config.use_local_dataset:
+    tmp_dir = "/data/datasets" # 暂时使用, 在训练结束时清理
+    dataset_dir = os.path.join(tmp_dir, run_id)
+    os.makedirs(dataset_dir, exist_ok=True)
+
+    # 保存所有本地上传的文件
+    if task_config.use_local_dataset:
             for file in files:
                 file_path = os.path.join(dataset_dir, file.filename)
                 with open(file_path, "wb") as buffer:
                     buffer.write(await file.read())
-        else:
+    # 保存指定存储桶中的数据集
+    else:
+        # 尝试获取桶的元数据文件
+        response = minio_client.get_object(task_config.db_dataset_bucket_name, ".bucket_meta")
+        meta_content = response.data.decode()
+        response.close()
+        response.release_conn()
+        
+        # 解析元数据中的密码
+        stored_pwd = None
+        for line in meta_content.splitlines():
+            if line.startswith("password="):
+                stored_pwd = line.split("=", 1)[1].strip()
+                break
+        if stored_pwd and stored_pwd == _hash_password(task_config.db_dataset_bucket_pwd):
+                logger.info(f"存储桶密码验证成功")
 
-        
-        # 获取所有表单参数作为训练参数
-        form_data = await request.form()
-        train_params = {
-            key: value 
-            for key, value in form_data.items() 
-            if key not in ["files", "model_type", "train_name"]  # 排除基础参数
-        }
-        
-        # 传递数据集目录路径（而不是单个文件路径）
-        task = train_model_task.delay(
-            dataset_path=dataset_dir,
-            run_id=run_id,
-            **task_config,
+                # 检查是文件还是文件夹
+                try:
+                    # 尝试作为文件下载
+                    minio_client.fget_object(
+                        task_config.db_dataset_bucket_name,
+                        task_config.db_dataset_name,
+                        os.path.join(dataset_dir, os.path.basename(task_config.db_dataset_name))
+                    )
+                    logger.info(f"已下载数据集文件: {task_config.db_dataset_name}")
+                except S3Error as e:
+                    if e.code == 'NoSuchKey':
+                        # 作为文件夹处理
+                        prefix = task_config.db_dataset_name
+                        if not prefix.endswith('/'):
+                            prefix += '/'
+
+                        objects = minio_client.list_objects(
+                            task_config.db_dataset_bucket_name,
+                            prefix=prefix,
+                            recursive=True
+                        )
+
+                        # 下载所有对象
+                        total_files = 0
+                        for obj in objects:
+                            total_files += 1
+                            relative_path = obj.object_name[len(prefix):]
+                            local_path = os.path.join(dataset_dir, relative_path)
+                            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+
+                            minio_client.fget_object(
+                                task_config.db_dataset_bucket_name,
+                                obj.object_name,
+                                local_path
+                            )
+                        logger.info(f"已下载数据集文件夹: {task_config.db_dataset_name}，包含 {total_files} 个文件")
+                    else:
+                        logger.error(f"MinIO操作失败: {str(e)}")
+                        return JSONResponse(
+                            status_code=500,
+                            content={"error": f"数据集访问失败: {e.message}"}
+                        )
+        else:
+                logger.error("存储桶密码验证失败")
+                return JSONResponse(
+                    status_code=403,
+                    content={"error": "存储桶密码错误"}
+                )
+    
+    # 开始前判读数据集是否为空
+    if not os.listdir(dataset_dir):
+        return JSONResponse(
+            status_code=400,
+            content={"error": "数据集为空"}
         )
+    # 传递数据集目录路径（而不是单个文件路径）
+    task = train_model_task.delay(
+        dataset_path=dataset_dir,
+        run_id=run_id,
+        **task_config,
+    )
     
     return {
         "status": "training_started",

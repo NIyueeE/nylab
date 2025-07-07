@@ -3,7 +3,7 @@ import io
 import importlib
 import logging
 import hashlib
-from minio import Minio, S3Error
+from minio import Minio
 from minio.error import S3Error
 from minio.datatypes import Part
 from .progress import _acquire_bucket_lock

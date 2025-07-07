@@ -1,5 +1,4 @@
 import os
-import docker
 import logging
 from celery import Celery
 import mlflow
@@ -14,6 +13,14 @@ from .utils.database import (
 
 # 配置日志
 logger = logging.getLogger(__name__)
+
+# MinIO客户端配置
+minio_client = Minio(
+    endpoint=os.getenv("MINIO_ENDPOINT", "minio:9000"),
+    access_key=os.environ["AWS_ACCESS_KEY_ID"],
+    secret_key=os.environ["AWS_SECRET_ACCESS_KEY"],
+    secure=False
+)
 
 # 环境配置集中管理
 ENV_CONFIG = {
@@ -34,18 +41,11 @@ celery_app = Celery(
     backend='redis://redis:6379/0'
 )
 
-# MinIO客户端配置
-minio_client = Minio(
-    endpoint=os.getenv("MINIO_ENDPOINT", "minio:9000"),
-    access_key=os.environ["AWS_ACCESS_KEY_ID"],
-    secret_key=os.environ["AWS_SECRET_ACCESS_KEY"],
-    secure=False
-)
-
 @celery_app.task(bind=True)
 def train_model_task(self, 
                      dataset_path: str, 
-                     run_id: str, 
+                     run_id: str,
+                     minio_client: Minio,
                      **task_config
     ):
     """通用模型训练任务接口
