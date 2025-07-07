@@ -39,3 +39,9 @@ def update_progress(run_id: str, progress: int, message: str, accuracy: float = 
         # 发布进度更新
         pipe.publish(f"progress:{run_id}", json.dumps(data))
         pipe.execute()
+
+def _acquire_bucket_lock(bucket_name: str, timeout=30) -> bool:
+    """获取存储桶操作锁"""
+    r = redis.Redis(connection_pool=REDIS_POOL)
+    lock = r.lock(f"lock:bucket:{bucket_name}", timeout=timeout)
+    return lock.acquire(blocking=True, blocking_timeout=10)

@@ -1,7 +1,5 @@
 import os
-from dotenv import load_dotenv
-from pathlib import Path
-# import time
+import docker
 import logging
 from celery import Celery
 import mlflow
@@ -11,21 +9,11 @@ from .utils.database import (
     download_training_script, 
     load_training_module, 
     archive_dataset, 
-    upload_training_script
+    upload_training_script,
 )
 
 # 配置日志
 logger = logging.getLogger(__name__)
-
-# 计算.env文件的绝对路径
-env_path = Path(__file__).resolve().parent.parent.parent / '.env'
-
-# 加载.env文件
-if env_path.exists():
-    load_dotenv(dotenv_path=env_path)
-    logger.info(f"已加载环境文件: {env_path}")
-else:
-    logger.warning(f"未找到环境文件: {env_path}")
 
 # 环境配置集中管理
 ENV_CONFIG = {
@@ -55,29 +43,32 @@ minio_client = Minio(
 )
 
 @celery_app.task(bind=True)
-def train_model_task(self, train_name: str, model_type: str, dataset_path: str, run_id: str, **train_params):
+def train_model_task(self, 
+                     dataset_path: str, 
+                     run_id: str, 
+                     **task_config
+    ):
     """通用模型训练任务接口
     
     Args:
         train_name: 训练任务名称
-        model_type: 模型类型
         dataset_path: 数据集路径
         run_id: 训练运行ID
-        **train_params: 动态训练参数
+        **params: 模型训练参数
     """
     # 初始化进度
     update_progress(run_id, 0, "初始化训练任务")
-    logger.info(f"开始训练任务: {run_id}, 模型类型: {model_type}")
+    run_name=f"{task_config.get('train_name', 'train')}-{run_id}"
+    logger.info(f"开始训练任务: {run_name}")
     
     try:
         # 设置MLflow跟踪
         mlflow.set_tracking_uri(os.environ["MLFLOW_TRACKING_URI"])
-        mlflow.set_experiment("AutoML-Training")
+        mlflow.set_experiment(task_config.train_name)
         
-        with mlflow.start_run(run_name=f"{train_name}-{run_id}") as run:
+        with mlflow.start_run(run_name) as run:
             # 记录基础参数
-            mlflow.log_param("model_type", model_type)
-            mlflow.log_param("dataset", os.path.basename(dataset_path))
+            mlflow.log_param("数据集来源", task_config.local_dataset_path)
             
             # 记录所有训练参数
             for key, value in train_params.items():
@@ -106,7 +97,7 @@ def train_model_task(self, train_name: str, model_type: str, dataset_path: str, 
                 logger.info(f"自定义脚本写入: {script_path}")
 
                 # 保存到MinIO
-                if train_params.get("save_to_db", False):
+                if train_params.get("script_save_2_db", False):
                     update_progress(run_id, 21, "保存脚本到数据库")
                     upload_training_script(
                         minio_client, 
@@ -153,8 +144,24 @@ def train_model_task(self, train_name: str, model_type: str, dataset_path: str, 
                 mlflow.sklearn.log_model(result['model'], "model")
                 logger.info(f"模型保存完成: {run.info.run_id}")
             
+            # 是否储藏数据集
+            store_dataset = train_params.get("store_dataset", False)
+            bucket_name = train_params.get("bucket_name", "open-datasets")
+            bucket_pwd = train_params.get("bucket_pwd", None)
+            stored_dataset_name = train_params.get("stored_dataset_name", "收藏数据集的名称")
+            stored_dataset_desc = train_params.get("stored_dataset_desc", "收藏数据集的描述")
+
             # 归档数据集
-            archive_dataset(minio_client, dataset_path, run_id)
+            archive_dataset(
+                minio_client, 
+                dataset_path, 
+                store_dataset, 
+                run_id,
+                bucket_name,
+                bucket_pwd,
+                stored_dataset_name,
+                stored_dataset_desc
+            )           
             logger.info(f"数据集归档完成: {dataset_path}")
             
             # 完成训练
