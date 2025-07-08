@@ -23,7 +23,7 @@
       "request": "launch",
       "program": "${workspaceFolder}/test/backend_test.py",
       "console": "integratedTerminal",
-      "python": "/home/niyue/.conda/envs/nylab/bin/python",
+      "python": "/home/niyue/miniconda3/envs/nylab/bin/python",
       "env": {
         "PYTHONPATH": "${workspaceFolder}/backend"
       }
