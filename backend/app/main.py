@@ -129,30 +129,33 @@ async def start_training_task(
     # 保存本地上传的脚本文件
     if task_config.use_local_script:
         if script_file:
-            script_path = os.path.join(dataset_dir, script_file.filename)
+            script_path = os.path.join(script_dir, script_file.filename)
             with open(script_path, "wb") as buffer:
                 buffer.write(await script_file.read())
     # 保存存储桶中的脚本文件
-    else: 
-        minio_client.fget_object(
-            "training-scripts",
-            task_config.db_script_name,
-            script_dir
-        )
+    else:
+        script_file_path = os.path.join(script_dir, os.path.basename(task_config.db_script_name))
+        try:
+            minio_client.fget_object(
+                "training-scripts",
+                task_config.db_script_name,
+                script_file_path
+            )
+        except S3Error as e:
+            logger.error(f"下载脚本失败: {e}")
+            return JSONResponse(status_code=500, content={"error": f"脚本下载失败: {e.message}"})
 
-    # 开始前判读数据集是否为空
-    if not os.listdir(dataset_dir):
-        return JSONResponse(
-            status_code=400,
-            content={"error": "数据集为空"}
+    try:
+        # 传递数据集目录路径（而不是单个文件路径）
+        task = train_model_task.delay(
+            dataset_path=dataset_dir,
+            script_path=script_dir,
+            run_id=run_id,
+            **task_config.dict(),
         )
-    # 传递数据集目录路径（而不是单个文件路径）
-    task = train_model_task.delay(
-        dataset_path=dataset_dir,
-        script_path=script_dir,
-        run_id=run_id,
-        **task_config,
-    )
+    except Exception as e:
+        logger.error(f"任务运行失败: {e}")
+        return JSONResponse(status_code=500, content={"error": f"任务启动失败: {e}"})
     
     return {
         "status": "training_started",

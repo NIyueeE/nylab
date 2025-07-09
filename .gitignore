@@ -21,10 +21,10 @@
 
 # 前端特定
 frontend/.vite/
-frontend/package-lock.json  # 已存在锁定文件，无需重复提交
+# frontend/package-lock.json
 
 # 后端特定
-backend/.mypy_cache/
+**/.mypy_cache/
 
 # MLflow
 mlflow/mlruns/
@@ -32,7 +32,12 @@ mlflow/mlartifacts/
 
 # 编辑器配置
 .idea/
-# .vscode/ 
+.vscode/ 
 
 # Docker忽略
 **/docker-compose.override.yml
+
+# 测试文件夹
+./tests/datasets/*
+
+!**/.gitkeep

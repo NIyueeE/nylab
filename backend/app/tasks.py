@@ -1,6 +1,7 @@
 import os
 import io
 import logging
+import shutil
 from celery import Celery
 import mlflow
 from minio import Minio
@@ -89,20 +90,15 @@ def train_model_task(self,
                     f"数据库:training-scripts/{task_config.db_script_name}"
                 )
             update_progress(run_id, 10, "记录基础参数")
-
-            hyperparams = task_config.get("hyperparams", {})
-            # 记录所有训练超参数
-            for key, value in task_config.hyperparams.items():
-                mlflow.log_param(key, value)
-            update_progress(run_id, 15, "记录训练超参数")
             
             # 动态加载脚本
-            update_progress(run_id, 25, "加载训练模块")
+            update_progress(run_id, 15, "加载训练模块")
             training_model = load_training_module(script_path)
             logger.info(f"成功加载训练模块: {os.path.basename(script_path)}")
             
             # 调用训练函数
-            update_progress(run_id, 30, "开始模型训练")
+            hyperparams = task_config.get("hyperparams", {})
+            update_progress(run_id, 25, "开始模型训练")
             result = training_model.nylab_train(
                 dataset_path=dataset_path,
                 run_id=run_id,
@@ -111,16 +107,14 @@ def train_model_task(self,
             )
             
             # 处理训练结果
-            if 'model' in result:
+            if 'model_path' in result:
                 # 记录模型指标
                 metrics = result.get('metrics', {})
                 for metric_name, metric_value in metrics.items():
                     mlflow.log_metric(metric_name, metric_value)
-                
-                # 保存模型
-                update_progress(run_id, 85, "保存模型")
-                mlflow.sklearn.log_model(result['model'], "model")
+                mlflow.log_artifact(result['model'], "model")
                 logger.info(f"模型保存完成: {run.info.run_id}")
+                update_progress(run_id, "记录模型")
             
             # 是否储藏数据集
             if task_config.use_local_dataset:
@@ -186,3 +180,8 @@ def train_model_task(self,
         update_progress(run_id, 0, error_msg, status="failed")
         mlflow.log_param("error", error_msg)
         raise self.retry(exc=e, countdown=60)
+    finally:
+        try:
+            shutil.rmtree(os.path.dirname(dataset_path))  # 清理 /data/{run_id}
+        except Exception as e:
+            logger.warning(f"清理临时目录失败: {str(e)}")        
