@@ -1,0 +1,6 @@
+path: ./datasets/
+train: images/train
+val: images/val
+
+nc: 4  # 类别数量
+names: ['goods', 'tray', 'trailer', 'bar']  # 类别名称

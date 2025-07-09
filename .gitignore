@@ -38,6 +38,6 @@ mlflow/mlartifacts/
 **/docker-compose.override.yml
 
 # 测试文件夹
-./tests/datasets/*
+./tests/test_datasets/*
 
 !**/.gitkeep

@@ -1,0 +1,24 @@
+{
+  "train_name": "yolov8_test",
+  
+  "use_local_dataset": true,
+  "local_dataset_path": "/home/niyue/Desktop/nylab/test/test_datasets/datasets",
+
+  "use_local_script": false,
+  "db_script_name": "yolov8_test.py",
+
+  "store_dataset": true,
+  "stored_dataset_desc": "yolov8_test测试集",
+  
+  "store_script": false,
+  "stored_script_desc": "",
+  
+  "use_pretrained_model": false,
+  "use_local_pretrained_model": false,
+
+  "pretrained_model_name": "",
+  
+  "hyperparams": {
+    "epochs": 17
+  }
+}
