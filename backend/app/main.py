@@ -1,14 +1,14 @@
 import os
-import tempfile
 from typing import Optional
+from pydantic import ValidationError
 from dotenv import load_dotenv
-from pathlib import Path
 import logging
 from fastapi.responses import JSONResponse
 from minio import Minio
 from minio.error import S3Error
 import uuid
-from fastapi import FastAPI, UploadFile, Request, File
+import json
+from fastapi import FastAPI, UploadFile, Request, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from .tasks import train_model_task, minio_client
 from .utils.TrainingConfig import TrainingConfig
@@ -18,16 +18,6 @@ app = FastAPI()
 
 # 配置日志
 logger = logging.getLogger(__name__)
-
-# 计算.env文件的绝对路径
-env_path = Path(__file__).resolve().parent.parent.parent / '.env'
-
-# 加载.env文件
-if env_path.exists():
-    load_dotenv(dotenv_path=env_path)
-    logger.info(f"已加载环境文件: {env_path}")
-else:
-    logger.warning(f"未找到环境文件: {env_path}")
 
 # 配置CORS
 app.add_middleware(
@@ -42,9 +32,28 @@ app.add_middleware(
 async def start_training_task(
     request: Request,
     files: list[UploadFile] = File(...),  # 修改为多文件上传
-    script_file: Optional[UploadFile] = File(None),  # 单独脚本文件
-    task_config: TrainingConfig = None  # 新增JSON配置参数
+    config_file: str = Form(...),
+    script_file: Optional[UploadFile] = File(None)  # 单独脚本文件
 ):
+    logger.info("当前环境变量:")
+    for key, value in os.environ.items():
+        # 过滤敏感信息（如密码、密钥等）
+        if any(sensitive in key.lower() for sensitive in ['pass', 'secret', 'key', 'token']):
+            logger.info(f"{key} = [REDACTED]")
+        else:
+            logger.info(f"{key} = {value}")
+        # 解析任务配置
+
+    try:
+        config_data = json.loads(config_file)
+        task_config = TrainingConfig(**config_data)  # 创建Pydantic对象
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON解析失败: {e}")
+        return JSONResponse(status_code=400, content={"error": "无效的JSON格式"})
+    except ValidationError as e:
+        logger.error(f"配置验证失败: {e}")
+        return JSONResponse(status_code=400, content={"error": f"配置验证失败: {e}"})
+
     # 生成唯一运行ID
     run_id = str(uuid.uuid4())
     
@@ -59,6 +68,7 @@ async def start_training_task(
     if task_config.use_local_dataset:
         for file in files:
             file_path = os.path.join(dataset_dir, file.filename)
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
             with open(file_path, "wb") as buffer:
                 buffer.write(await file.read())
     # 保存指定存储桶中的数据集
@@ -130,6 +140,7 @@ async def start_training_task(
     if task_config.use_local_script:
         if script_file:
             script_path = os.path.join(script_dir, script_file.filename)
+            os.makedirs(os.path.dirname(script_path), exist_ok=True)
             with open(script_path, "wb") as buffer:
                 buffer.write(await script_file.read())
     # 保存存储桶中的脚本文件

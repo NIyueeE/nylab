@@ -27,8 +27,8 @@ minio_client = Minio(
 ENV_CONFIG = {
     "MLFLOW_TRACKING_URI": "http://mlflow:5000",
     "MLFLOW_S3_ENDPOINT_URL": "http://minio:9000",
-    "AWS_ACCESS_KEY_ID": os.getenv("AWS_ACCESS_KEY_ID", "minio"),
-    "AWS_SECRET_ACCESS_KEY": os.getenv("AWS_SECRET_ACCESS_KEY", "minio123")
+    "AWS_ACCESS_KEY_ID": os.getenv("AWS_ACCESS_KEY_ID"),
+    "AWS_SECRET_ACCESS_KEY": os.getenv("AWS_SECRET_ACCESS_KEY")
 }
 
 # 设置环境变量

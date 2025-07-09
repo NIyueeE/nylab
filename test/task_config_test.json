@@ -14,9 +14,6 @@
   "stored_script_desc": "",
   
   "use_pretrained_model": false,
-  "use_local_pretrained_model": false,
-
-  "pretrained_model_name": "",
   
   "hyperparams": {
     "epochs": 17

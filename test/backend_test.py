@@ -39,19 +39,21 @@ def simulate_post():
             file_path = os.path.join(root, filename)
             # 计算相对路径（保持目录结构）
             rel_path = os.path.relpath(file_path, dataset_dir)
-            
-            with open(file_path, "rb") as f:
-                # 保留目录结构的文件上传
-                files_list.append(("files", (rel_path, f, "application/octet-stream")))
+            files_list.append((file_path, rel_path))
     
-    # 添加配置数据
-    data = {"task_config": json.dumps(task_config)}
+    # 在请求中打开文件
+    files_for_request = []
+    for file_path, rel_path in files_list:
+        with open(file_path, "rb") as f:
+            files_for_request.append(("files", (rel_path, f, "application/octet-stream")))
     
     # 发送请求
     response = requests.post(
         train_url,
-        files=files_list,
-        data=data
+        files=[
+            *[("files", (rel_path, open(file_path, "rb"), "application/octet-stream"))for file_path, rel_path in files_list],
+            ("config_file", (None, json.dumps(task_config), "application/json"))
+        ]
     )
     
     # 检查响应状态
