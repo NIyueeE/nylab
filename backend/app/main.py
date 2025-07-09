@@ -49,16 +49,18 @@ async def start_training_task(
     run_id = str(uuid.uuid4())
     
     # 创建数据集目录（以run_id命名）, 使用临时目录
-    tmp_dir = "/data/datasets" # 暂时使用, 在训练结束时清理
-    dataset_dir = os.path.join(tmp_dir, run_id)
+    tmp_dir = f"/data/{run_id}" # 暂时使用, 在训练结束时清理
+    dataset_dir = os.path.join(tmp_dir, "datasets")
+    script_dir = tmp_dir
     os.makedirs(dataset_dir, exist_ok=True)
+    os.makedirs(script_dir, exist_ok=True)
 
     # 保存所有本地上传的文件
     if task_config.use_local_dataset:
-            for file in files:
-                file_path = os.path.join(dataset_dir, file.filename)
-                with open(file_path, "wb") as buffer:
-                    buffer.write(await file.read())
+        for file in files:
+            file_path = os.path.join(dataset_dir, file.filename)
+            with open(file_path, "wb") as buffer:
+                buffer.write(await file.read())
     # 保存指定存储桶中的数据集
     else:
         # 尝试获取桶的元数据文件
@@ -124,7 +126,20 @@ async def start_training_task(
                     status_code=403,
                     content={"error": "存储桶密码错误"}
                 )
-    
+    # 保存本地上传的脚本文件
+    if task_config.use_local_script:
+        if script_file:
+            script_path = os.path.join(dataset_dir, script_file.filename)
+            with open(script_path, "wb") as buffer:
+                buffer.write(await script_file.read())
+    # 保存存储桶中的脚本文件
+    else: 
+        minio_client.fget_object(
+            "training-scripts",
+            task_config.db_script_name,
+            script_dir
+        )
+
     # 开始前判读数据集是否为空
     if not os.listdir(dataset_dir):
         return JSONResponse(
@@ -134,6 +149,7 @@ async def start_training_task(
     # 传递数据集目录路径（而不是单个文件路径）
     task = train_model_task.delay(
         dataset_path=dataset_dir,
+        script_path=script_dir,
         run_id=run_id,
         **task_config,
     )

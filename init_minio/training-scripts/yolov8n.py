@@ -1,6 +1,6 @@
 from ultralytics import YOLO
 
-def train_model(dataset_path, run_id, update_progress, **kwargs):
+def nylab_train(dataset_path, run_id, update_progress, **kwargs):
     # 解析参数（带默认值）
     epochs = kwargs.get('epochs', 100)
     batch_size = kwargs.get('batch_size', 16)

@@ -46,42 +46,6 @@ def _upload_file_2_bucket(minio_client: Minio,
         logger.error(f"文件上传失败: {str(e)}")
         raise
 
-
-def download_training_script(
-        minio_client: Minio, 
-        model_type: str, run_id: 
-        str, script_name: str = ""
-    ) -> str:
-    """从MinIO下载训练脚本
-    
-    Args:
-        minio_client: MinIO客户端实例
-        model_type: 模型类型
-        run_id: 训练运行ID
-        script_name: 自定义脚本名(可选)
-        
-    Returns:
-        下载的脚本本地路径
-    """
-    script_bucket = "training-scripts"
-    script_name = script_name or f"{model_type}.py"
-    script_path = f"/tmp/{run_id}_{script_name}"
-    
-    try:
-        # 确保存储桶存在
-        if not minio_client.bucket_exists(script_bucket):
-            minio_client.make_bucket(script_bucket)
-            logger.info(f"创建存储桶: {script_bucket}")
-        
-        # 下载脚本
-        minio_client.fget_object(script_bucket, script_name, script_path)
-        logger.info(f"下载脚本: {script_name} -> {script_path}")
-        return script_path
-        
-    except S3Error as e:
-        logger.error(f"下载脚本失败: {e}")
-        raise FileNotFoundError(f"脚本不存在: {script_name}") from e
-
 def upload_training_script(
         minio_client: Minio, 
         script_name: str, 
