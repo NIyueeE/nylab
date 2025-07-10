@@ -5,7 +5,7 @@
   "local_dataset_path": "/home/niyue/Desktop/nylab/test/test_datasets/datasets",
 
   "use_local_script": false,
-  "db_script_name": "yolov8_test.py",
+  "db_script_name": "yolov8-template.py",
 
   "store_dataset": true,
   "stored_dataset_desc": "yolov8_test测试集",

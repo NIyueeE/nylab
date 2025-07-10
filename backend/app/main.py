@@ -18,6 +18,8 @@ app = FastAPI()
 
 # 配置日志
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logger.addHandler(logging.StreamHandler())
 
 # 配置CORS
 app.add_middleware(
@@ -35,15 +37,6 @@ async def start_training_task(
     config_file: str = Form(...),
     script_file: Optional[UploadFile] = File(None)  # 单独脚本文件
 ):
-    logger.info("当前环境变量:")
-    for key, value in os.environ.items():
-        # 过滤敏感信息（如密码、密钥等）
-        if any(sensitive in key.lower() for sensitive in ['pass', 'secret', 'key', 'token']):
-            logger.info(f"{key} = [REDACTED]")
-        else:
-            logger.info(f"{key} = {value}")
-        # 解析任务配置
-
     try:
         config_data = json.loads(config_file)
         task_config = TrainingConfig(**config_data)  # 创建Pydantic对象
@@ -54,6 +47,7 @@ async def start_training_task(
         logger.error(f"配置验证失败: {e}")
         return JSONResponse(status_code=400, content={"error": f"配置验证失败: {e}"})
 
+    logger.info(f"传入配置: {task_config}")
     # 生成唯一运行ID
     run_id = str(uuid.uuid4())
     
@@ -145,12 +139,12 @@ async def start_training_task(
                 buffer.write(await script_file.read())
     # 保存存储桶中的脚本文件
     else:
-        script_file_path = os.path.join(script_dir, os.path.basename(task_config.db_script_name))
+        script_path = os.path.join(script_dir, os.path.basename(task_config.db_script_name))
         try:
             minio_client.fget_object(
                 "training-scripts",
                 task_config.db_script_name,
-                script_file_path
+                script_path
             )
         except S3Error as e:
             logger.error(f"下载脚本失败: {e}")
@@ -160,12 +154,12 @@ async def start_training_task(
         # 传递数据集目录路径（而不是单个文件路径）
         task = train_model_task.delay(
             dataset_path=dataset_dir,
-            script_path=script_dir,
+            script_path=script_path,
             run_id=run_id,
-            **task_config.dict(),
+            task_config=task_config.dict()
         )
     except Exception as e:
-        logger.error(f"任务运行失败: {e}")
+        logger.error(f"任务启动失败: {e}")
         return JSONResponse(status_code=500, content={"error": f"任务启动失败: {e}"})
     
     return {

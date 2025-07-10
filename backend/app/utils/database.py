@@ -10,6 +10,8 @@ from .progress import _acquire_bucket_lock
 
 # 配置日志Part
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logger.addHandler(logging.StreamHandler())
 
 # 哈希工具函数
 def _hash_password(password: str) -> str:

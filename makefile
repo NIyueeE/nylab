@@ -11,9 +11,6 @@ debug-down:
 attach-backend:
 	docker attach nylab_backend_debug
 
-run-test:
-	docker exec nylab_backend_debug python /test/backend_test.py
-
 build-up:
 	docker-compose -f docker-compose.yml up --build -d
 

@@ -1,5 +1,5 @@
 # 构建阶段
-FROM node:18-alpine AS build
+FROM docker.1ms.run/node:18-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 # 指定华为源

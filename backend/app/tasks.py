@@ -14,6 +14,8 @@ from .utils.database import (
 
 # 配置日志
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logger.addHandler(logging.StreamHandler())
 
 # MinIO客户端配置
 minio_client = Minio(
@@ -47,7 +49,7 @@ def train_model_task(self,
                      dataset_path: str,
                      script_path: str,
                      run_id: str,
-                     **task_config
+                     task_config: dict
     ):
     """通用模型训练任务接口
     
@@ -57,6 +59,7 @@ def train_model_task(self,
         run_id: 训练运行ID
         **params: 模型训练参数
     """
+    logger.info(f"传入配置: {task_config}")
     # 初始化进度
     update_progress(run_id, 0, "初始化训练任务")
     run_name=f"{task_config.get('train_name', 'train')}-{run_id}"
@@ -65,29 +68,31 @@ def train_model_task(self,
     try:
         # 设置MLflow跟踪
         mlflow.set_tracking_uri(os.environ["MLFLOW_TRACKING_URI"])
-        mlflow.set_experiment(task_config.train_name)
+        mlflow.set_experiment(task_config.get('train_name', 'train'))
         
-        with mlflow.start_run(run_name) as run:
+        with mlflow.start_run() as run:
+            mlflow.set_tag("mlflow.runName", run_name)
             # 记录基础参数
-            if task_config.use_local_dataset:
+            if task_config["use_local_dataset"]:
                 mlflow.log_param(
                     "数据集来源",
-                    f"本地:{task_config.local_dataset_path}"
+                    f"本地:{task_config['local_dataset_path']}"
                 )
             else:
                 mlflow.log_param(
                     "数据集来源", 
-                    f"数据库:{task_config.db_dataset_bucket_name}/{task_config.db_dataset_name}"
+                    f"数据库:{task_config['db_dataset_bucket_name']}/{task_config['db_dataset_name']}"
                 )
-            if task_config.use_local_script:
+            
+            if task_config["use_local_script"]:
                 mlflow.log_param(
                     "脚本来源",
-                    f"本地:{task_config.local_script_path}"
+                    f"本地:{task_config['local_script_path']}"
                 )
             else:
                 mlflow.log_param(
                     "脚本来源", 
-                    f"数据库:training-scripts/{task_config.db_script_name}"
+                    f"数据库:training-scripts/{task_config['db_script_name']}"
                 )
             update_progress(run_id, 10, "记录基础参数")
             
@@ -117,7 +122,7 @@ def train_model_task(self,
                 update_progress(run_id, "记录模型")
             
             # 是否储藏数据集
-            if task_config.use_local_dataset:
+            if task_config["use_local_dataset"]:
                 store_dataset = task_config.get("store_dataset", False)
                 bucket_name = task_config.get("bucket_name", "open-datasets")
                 bucket_pwd = task_config.get("bucket_pwd", None)
@@ -140,9 +145,9 @@ def train_model_task(self,
             else:
                 logger.info("非本地数据集，不进行归档")
             # 是否储藏训练脚本
-            if task_config.use_local_script:
+            if task_config["use_local_script"]:
                 script_name = os.path.basename(script_path)
-                if task_config.store_script:
+                if task_config["store_script"]:
                     _upload_file_2_bucket(
                         minio_client, 
                         "training-scripts", 
@@ -178,7 +183,7 @@ def train_model_task(self,
         error_msg = f"训练失败: {str(e)}"
         logger.exception(error_msg)
         update_progress(run_id, 0, error_msg, status="failed")
-        mlflow.log_param("error", error_msg)
+        mlflow.log_param("error_message", error_msg)
         raise self.retry(exc=e, countdown=60)
     finally:
         try:

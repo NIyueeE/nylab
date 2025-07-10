@@ -1,4 +1,4 @@
-FROM python:3.11-slim-buster
+FROM docker.1ms.run/python:3.11-slim-buster
 
 # 安装Python依赖
 COPY requirements.txt .
