@@ -1,0 +1,13 @@
+debugpy
+fastapi==0.104.0
+uvicorn[standard]==0.23.2
+minio==7.1.15
+pydantic==2.11.7
+python-multipart
+python-dotenv
+requests
+python-dateutil
+
+# 由backend_common产生的依赖
+hashlib
+celery==5.3.1
