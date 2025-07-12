@@ -126,7 +126,7 @@ services:
       CELERY_RESULT_BACKEND: redis://redis:6379/1
     command: >
       sh -c "
-      python -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      python -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m uvicorn web.src.main:app --host 0.0.0.0 --port 8000 --reload
       "
     depends_on:
       redis:
@@ -138,8 +138,10 @@ services:
   worker:
     build:
       context: .
-      dockerfile: ./web/Dockerfile
+      dockerfile: ./worker/Dockerfile
     container_name: nylab_worker_debug
+    ports:
+      - "5679:5679"
     volumes:
       # 代码热重载
       - ./worker:/app/worker  
@@ -148,6 +150,7 @@ services:
       - shared_data:/data # 与web服务共享上传数据
 
     environment:
+      PYTHONUNBUFFERED: "1"  # 确保实时日志输出
       MLFLOW_TRACKING_URI: http://mlflow:5000
       MINIO_ENDPOINT: minio:9000
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
@@ -158,8 +161,26 @@ services:
       CELERY_CONCURRENCY: ${CELERY_CONCURRENCY}
     command: >
       sh -c "
-      watchmedo auto-restart --directory=/app/worker --pattern='*.py' --recursive -- 
+      # 等待依赖服务就绪
+      while ! nc -z $${REDIS_HOST:-redis} 6379; do sleep 2; done
+      while ! nc -z minio 9000; do sleep 2; done
+      while ! nc -z mlflow 5000; do sleep 2; done
+      
+      watchmedo auto-restart --directory=/app/worker --pattern='*.py' --recursive -- \
+        celery -A worker.src.celery_app worker --loglevel=info --concurrency=$${CELERY_CONCURRENCY}
+      
+      # 保持容器运行
+      tail -f /dev/null
       "
+    
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: -1  # 表示使用所有可用 GPU
+              capabilities: [gpu]
+
     depends_on:
       redis:
         condition: service_healthy

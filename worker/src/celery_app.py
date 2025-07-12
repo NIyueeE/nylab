@@ -1,5 +1,6 @@
 from backend_common.celery_setup import create_celery_app
 
+
 # 创建包含任务模块的完整Celery实例
 celery_app = create_celery_app(include_tasks=True)
 

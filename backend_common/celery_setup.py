@@ -16,7 +16,7 @@ def create_celery_app(include_tasks=False):
         'tasks',
         broker=CELERY_BROKER_URL,
         backend=CELERY_RESULT_BACKEND,
-        include=[tasks_model_path] if include_tasks else None
+        include=[tasks_model_path] if include_tasks else []
     )
     
     # 通用配置（Web和Worker共享）
@@ -31,4 +31,6 @@ def create_celery_app(include_tasks=False):
         broker_connection_retry_on_startup=True
     )
     
+    
+
     return app

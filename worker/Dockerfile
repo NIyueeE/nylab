@@ -1,4 +1,4 @@
-FROM docker.1ms.run/nvidia/cuda:12.1.0-base-ubuntu22.04
+FROM docker.1ms.run/nvidia/cuda:12.1.0-runtime-ubuntu22.04
 
 WORKDIR /app
 
@@ -33,7 +33,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 
 # 安装Python依赖
-COPY requirements.txt .
+COPY ./worker/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # 复制应用代码

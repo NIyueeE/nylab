@@ -19,14 +19,14 @@ def nylab_train(dataset_path, run_id, update_progress, **hyperparams):
     # 设置默认值并覆盖传入参数
     cfg = {
         # 基础参数
-        'model': 'yolov8n.pt',
+        'model': './yolov8n.pt',
         'data': str(Path(dataset_path) / 'dataset.yaml'),
         'epochs': 100,
         'batch': 16,
         'imgsz': 640,
         'patience': 50,
         'device': '0',  # GPU ID
-        'workers': 8,
+        'workers': 0,
         
         # 优化参数
         'lr0': 0.01,

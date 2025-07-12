@@ -2,11 +2,11 @@ import os
 import io
 import importlib
 import logging
-import hashlib
 from minio import Minio
 from minio.error import S3Error
 from minio.datatypes import Part
 from .progress import _acquire_bucket_lock
+from backend_common.encoder import _hash_password
 
 # 配置日志Part
 logger = logging.getLogger(__name__)

@@ -15,7 +15,8 @@ from backend_common.encoder import _hash_password
 
 app = FastAPI()
 # 创建一个不包含任务模块的Celery应用, 仅用来发送任务信息
-celery_app = create_celery_app(include_tasks=False) 
+celery_app = create_celery_app(include_tasks=False)
+
 # MinIO客户端创建
 minio_client = Minio(
     endpoint=os.getenv("MINIO_ENDPOINT", "minio:9000"),
@@ -40,7 +41,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 
 @app.post("/api/train")
@@ -101,6 +101,7 @@ async def start_training_task(
             if line.startswith("password="):
                 stored_pwd = line.split("=", 1)[1].strip()
                 break
+        
         if stored_pwd and stored_pwd == _hash_password(task_config.db_dataset_bucket_pwd):
                 logger.info(f"存储桶密码验证成功")
 
@@ -178,12 +179,12 @@ async def start_training_task(
     try:
         # 传递数据集目录路径（而不是单个文件路径）
         task = celery_app.send_task(
-            "worker.tasks.train_task",
+            "worker.src.tasks.train_task.train_task",
             kwargs={
-                dataset_dir,
-                script_path,
-                run_id,
-                task_config.dict()
+                "dataset_path": dataset_dir,
+                "script_path": script_path,
+                "run_id": run_id,
+                "task_config": task_config.dict()
             }
         )
     except Exception as e:

@@ -1,13 +1,29 @@
 {
-  "version": "0.2.0",
+  "version": "0.3.0",
   "configurations": [
     {
-      "name": "Attach to Backend",
+      "name": "Attach to web",
       "type": "debugpy",
       "request": "attach",
       "connect": {
         "host": "localhost",
         "port": 5678
+      },
+      "pathMappings": [
+        {
+          "localRoot": "${workspaceFolder}",
+          "remoteRoot": "/app"
+        }
+      ],
+      "justMyCode": false
+    },
+    {
+      "name": "Attach to worker",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": {
+        "host": "localhost",
+        "port": 5679
       },
       "pathMappings": [
         {

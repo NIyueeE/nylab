@@ -11,8 +11,7 @@ from ..utils.database import (
     archive_dataset,
     _upload_file_2_bucket
 )
-from backend_common.encoder import _hash_password
-from backend_common import celery_app
+from ..celery_app import celery_app
 
 
 # 日志配置
@@ -86,6 +85,8 @@ def train_task(
                 )
             update_progress(run_id, 10, "记录基础参数")
             
+            original_cwd = os.getcwd()
+            os.chdir(dataset_path)
             # 动态加载脚本
             update_progress(run_id, 15, "加载训练模块")
             training_model = load_training_module(script_path)
@@ -94,13 +95,16 @@ def train_task(
             # 调用训练函数
             hyperparams = task_config.get("hyperparams", {})
             update_progress(run_id, 25, "开始模型训练")
+
+
+            logger.info(f"数据集: {dataset_path}")
             result = training_model.nylab_train(
                 dataset_path=dataset_path,
                 run_id=run_id,
                 update_progress=update_progress,
                 **hyperparams
             )
-            
+            os.chdir(original_cwd)
             # 处理训练结果
             if 'model_path' in result:
                 # 记录模型指标

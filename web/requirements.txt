@@ -9,5 +9,6 @@ requests
 python-dateutil
 
 # 由backend_common产生的依赖
-hashlib
 celery==5.3.1
+redis==4.5.5
+

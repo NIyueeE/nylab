@@ -1,11 +1,7 @@
 # backend_test.py
 import requests
 import os
-import sys
 import json
-
-# 添加后端路径到系统路径（仅用于导入可能需要的辅助函数）
-sys.path.append(os.path.abspath("../backend"))
 
 # 前端访问的API地址 - 使用Docker Compose映射的端口
 API_URL = "http://localhost:8000/api"
